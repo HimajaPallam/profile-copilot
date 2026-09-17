@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Profile Orchestration Copilot</title>
+<style>
+  :root {
+    color-scheme: light dark;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    max-width: 760px;
+    margin: 40px auto;
+    padding: 0 20px;
+    line-height: 1.5;
+  }
+  h1 {
+    font-size: 1.4rem;
+    margin-bottom: 4px;
+  }
+  p.subtitle {
+    color: #666;
+    margin-top: 0;
+    margin-bottom: 24px;
+  }
+  .examples {
+    background: rgba(127,127,127,0.08);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 0.9rem;
+  }
+  .examples code {
+    display: block;
+    margin: 4px 0;
+    cursor: pointer;
+  }
+  label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  input[type="text"] {
+    width: 100%;
+    font-size: 1rem;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid #999;
+    box-sizing: border-box;
+    margin-bottom: 14px;
+  }
+  textarea {
+    width: 100%;
+    min-height: 70px;
+    font-size: 1rem;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #999;
+    box-sizing: border-box;
+  }
+  button {
+    margin-top: 10px;
+    padding: 10px 18px;
+    font-size: 1rem;
+    border-radius: 8px;
+    border: none;
+    background: #2563eb;
+    color: white;
+    cursor: pointer;
+  }
+  button:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  .answer, .trace {
+    margin-top: 20px;
+    padding: 14px 16px;
+    border-radius: 8px;
+  }
+  .answer {
+    background: rgba(37,99,235,0.08);
+    border: 1px solid rgba(37,99,235,0.3);
+    white-space: pre-wrap;
+  }
+  .trace {
+    background: rgba(127,127,127,0.08);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.85rem;
+  }
+  .trace ol {
+    margin: 6px 0 0 0;
+    padding-left: 20px;
+  }
+  .hidden { display: none; }
+  .error { color: #c0392b; }
+</style>
+</head>
+<body>
+  <h1>Profile Orchestration Copilot</h1>
+  <p class="subtitle">Retrieval-only agentic demo &mdash; the rep supplies the customerId (as they would from their own CRM/case screen); the agent decides which read-only tools to call.</p>
+
+  <div class="examples">
+    Seeded customers: <strong>CUST1001</strong> John Carter &middot;
+    <strong>CUST1002</strong> Priya Nair &middot; <strong>CUST1003</strong> Miguel Santos
+    <br><br>
+    Example questions (click to fill the box):
+    <code onclick="fill(this)">What's this customer's risk tolerance and when did they last change their beneficiary?</code>
+    <code onclick="fill(this)">Give me the full account summary.</code>
+    <code onclick="fill(this)">Give me a full snapshot - profile, accounts, and activity in the last 60 days.</code>
+  </div>
+
+  <label for="customerId">Customer ID</label>
+  <input type="text" id="customerId" value="CUST1001" placeholder="e.g. CUST1001">
+
+  <label for="question">Question</label>
+  <textarea id="question" placeholder="Ask a question about this customer..."></textarea>
+  <br>
+  <button id="askBtn" onclick="ask()">Ask</button>
+
+  <div id="answerBox" class="answer hidden"></div>
+  <div id="traceBox" class="trace hidden"></div>
+
+  <script>
+    function fill(el) {
+      document.getElementById('question').value = el.textContent;
+    }
+
+    async function ask() {
+      const customerId = document.getElementById('customerId').value.trim();
+      const question = document.getElementById('question').value.trim();
+      if (!customerId || !question) return;
+
+      const btn = document.getElementById('askBtn');
+      const answerBox = document.getElementById('answerBox');
+      const traceBox = document.getElementById('traceBox');
+
+      btn.disabled = true;
+      btn.textContent = 'Thinking...';
+      answerBox.classList.add('hidden');
+      traceBox.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/copilot/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customerId, question })
+        });
+
+        if (!res.ok) {
+          throw new Error('Server returned ' + res.status);
+        }
+
+        const data = await res.json();
+
+        answerBox.textContent = data.answer;
+        answerBox.classList.remove('hidden');
+
+        if (data.toolTrace && data.toolTrace.length > 0) {
+          traceBox.innerHTML = '<strong>Tools the agent called:</strong><ol>' +
+            data.toolTrace.map(t => '<li>' + t.replaceAll('<', '&lt;') + '</li>').join('') +
+            '</ol>';
+        } else {
+          traceBox.innerHTML = '<strong>Tools the agent called:</strong> none';
+        }
+        traceBox.classList.remove('hidden');
+      } catch (err) {
+        answerBox.textContent = 'Error: ' + err.message + ' (is the app running with Ollama reachable at localhost:11434?)';
+        answerBox.classList.remove('hidden');
+        answerBox.classList.add('error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Ask';
+      }
+    }
+  </script>
+</body>
+</html>
