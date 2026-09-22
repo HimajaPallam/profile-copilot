@@ -1,4 +1,4 @@
-# Profile Orchestration Copilot (Retrieval-Only POC)
+# Profile Orchestration Copilot For Reps
 
 An agentic AI demo built with **Java + Spring Boot + Spring AI**, showing an LLM
 that answers a support rep's natural-language question about a customer by
